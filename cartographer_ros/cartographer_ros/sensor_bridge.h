@@ -90,6 +90,7 @@ class SensorBridge {
   const TfBridge tf_bridge_;
   ::cartographer::mapping::TrajectoryBuilderInterface* const
       trajectory_builder_;
+  cartographer::common::Time prev_points_time_;
 
   absl::optional<::cartographer::transform::Rigid3d> ecef_to_local_frame_;
 };

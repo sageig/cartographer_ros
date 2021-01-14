@@ -46,6 +46,10 @@ DEFINE_bool(include_unfrozen_submaps, true,
             "Include unfrozen submaps in the occupancy grid.");
 DEFINE_string(occupancy_grid_topic, cartographer_ros::kOccupancyGridTopic,
               "Name of the topic on which the occupancy grid is published.");
+DEFINE_bool(use_submap_subset, true,
+            "Use a subset of the current submaps");
+DEFINE_uint64(number_submaps, 2,
+            "Number of submaps to include in the occupancy grid. Note: Only used if use_submap_subset is true.");
 
 namespace cartographer_ros {
 namespace {
@@ -118,6 +122,11 @@ void Node::HandleSubmapList(
     submap_ids_to_delete.erase(id);
     if ((submap_msg.is_frozen && !FLAGS_include_frozen_submaps) ||
         (!submap_msg.is_frozen && !FLAGS_include_unfrozen_submaps)) {
+      continue;
+    }
+    ROS_INFO("submap size: %d, index: %d, num_subs: %d",msg->submap.size(),submap_msg.submap_index,FLAGS_number_submaps);
+    if ((FLAGS_use_submap_subset && 
+        (msg->submap.size() - (submap_msg.submap_index+1)) > FLAGS_number_submaps)) {
       continue;
     }
     SubmapSlice& submap_slice = submap_slices_[id];

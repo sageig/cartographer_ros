@@ -219,17 +219,17 @@ ToPointCloudWithIntensities(const sensor_msgs::PointCloud2& msg) {
   // We check for intensity field here to avoid run-time warnings if we pass in
   // a PointCloud2 without intensity.
   if (PointCloud2HasField(msg, "intensity")) {
-    if (PointCloud2HasField(msg, "time")) {
-      pcl::PointCloud<PointXYZIT> pcl_point_cloud;
-      pcl::fromROSMsg(msg, pcl_point_cloud);
-      point_cloud.points.reserve(pcl_point_cloud.size());
-      point_cloud.intensities.reserve(pcl_point_cloud.size());
-      for (const auto& point : pcl_point_cloud) {
-        point_cloud.points.push_back(
-            {Eigen::Vector3f{point.x, point.y, point.z}, point.time});
-        point_cloud.intensities.push_back(point.intensity);
-      }
-    } else {
+    // if (PointCloud2HasField(msg, "time")) {
+    //   pcl::PointCloud<PointXYZIT> pcl_point_cloud;
+    //   pcl::fromROSMsg(msg, pcl_point_cloud);
+    //   point_cloud.points.reserve(pcl_point_cloud.size());
+    //   point_cloud.intensities.reserve(pcl_point_cloud.size());
+    //   for (const auto& point : pcl_point_cloud) {
+    //     point_cloud.points.push_back(
+    //         {Eigen::Vector3f{point.x, point.y, point.z}, point.time});
+    //     point_cloud.intensities.push_back(point.intensity);
+    //   }
+    // } else {
       pcl::PointCloud<pcl::PointXYZI> pcl_point_cloud;
       pcl::fromROSMsg(msg, pcl_point_cloud);
       point_cloud.points.reserve(pcl_point_cloud.size());
@@ -239,7 +239,7 @@ ToPointCloudWithIntensities(const sensor_msgs::PointCloud2& msg) {
             {Eigen::Vector3f{point.x, point.y, point.z}, 0.f});
         point_cloud.intensities.push_back(point.intensity);
       }
-    }
+    // }
   } else {
     // If we don't have an intensity field, just copy XYZ and fill in 1.0f.
     if (PointCloud2HasField(msg, "time")) {

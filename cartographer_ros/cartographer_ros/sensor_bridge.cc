@@ -176,6 +176,15 @@ void SensorBridge::HandlePointCloud2Message(
   carto::sensor::PointCloudWithIntensities point_cloud;
   carto::common::Time time;
   std::tie(point_cloud, time) = ToPointCloudWithIntensities(*msg);
+  if (time <= prev_points_time_)
+  {
+    LOG(WARNING) << "Ignored PointCloud2 message from sensor "
+                 << sensor_id << " because previous PointCloud2 data time "
+                 << prev_points_time_ << " is not before current PointCloud2 data time "
+                 << time;
+    return;
+  }
+  prev_points_time_ = time;
   HandleRangefinder(sensor_id, time, msg->header.frame_id, point_cloud.points);
 }
 
