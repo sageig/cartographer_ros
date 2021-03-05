@@ -120,8 +120,6 @@ Node::Node(
             kTrackedPoseTopic, kLatestOnlyPublisherQueueSize);
   }
   service_servers_.push_back(node_handle_.advertiseService(
-      kSubmapCloudQueryServiceName, &Node::HandleSubmapCloudQuery, this));
-  service_servers_.push_back(node_handle_.advertiseService(
       kSubmapQueryServiceName, &Node::HandleSubmapQuery, this));
   service_servers_.push_back(node_handle_.advertiseService(
       kTrajectoryQueryServiceName, &Node::HandleTrajectoryQuery, this));
@@ -162,14 +160,6 @@ Node::Node(
 Node::~Node() { FinishAllTrajectories(); }
 
 ::ros::NodeHandle* Node::node_handle() { return &node_handle_; }
-
-bool Node::HandleSubmapCloudQuery(
-    ::cartographer_ros_msgs::SubmapCloudQuery::Request& request,
-    ::cartographer_ros_msgs::SubmapCloudQuery::Response& response) {
-  absl::MutexLock lock(&mutex_);
-  map_builder_bridge_.HandleSubmapCloudQuery(request, response);
-  return true;
-}
 
 bool Node::HandleSubmapQuery(
     ::cartographer_ros_msgs::SubmapQuery::Request& request,

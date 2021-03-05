@@ -21,6 +21,7 @@
 #include "cartographer/transform/transform.h"
 #include "cartographer_ros/msg_conversion.h"
 #include "cartographer_ros_msgs/StatusCode.h"
+#include "cartographer_ros_msgs/SubmapCloudQuery.h"
 #include "cartographer_ros_msgs/SubmapQuery.h"
 
 namespace cartographer_ros {
@@ -49,6 +50,27 @@ std::unique_ptr<::cartographer::io::SubmapTextures> FetchSubmapTextures(
         texture.width, texture.height, texture.resolution,
         ToRigid3d(texture.slice_pose)});
   }
+  return response;
+}
+
+std::unique_ptr<sensor_msgs::PointCloud2> FetchSubmapCloud(
+    const ::cartographer::mapping::SubmapId& submap_id,
+    float min_probability,
+    bool high_resolution,
+    ros::ServiceClient* client) {
+  ::cartographer_ros_msgs::SubmapCloudQuery srv;
+  srv.request.trajectory_id = submap_id.trajectory_id;
+  srv.request.submap_index = submap_id.submap_index;
+  srv.request.min_probability = min_probability;
+  srv.request.high_resolution = high_resolution;
+  if (!client->call(srv)) {
+    return nullptr;
+  }
+  if (srv.response.cloud.data.empty()) {
+    return nullptr;
+  }
+  auto response = absl::make_unique<sensor_msgs::PointCloud2>();
+  *response = srv.response.cloud;
   return response;
 }
 

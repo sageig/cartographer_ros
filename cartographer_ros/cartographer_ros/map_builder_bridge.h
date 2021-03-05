@@ -33,10 +33,14 @@
 #include "cartographer_ros/trajectory_options.h"
 #include "cartographer_ros_msgs/SubmapEntry.h"
 #include "cartographer_ros_msgs/SubmapList.h"
+#include "cartographer_ros_msgs/SubmapCloudQuery.h"
 #include "cartographer_ros_msgs/SubmapQuery.h"
 #include "cartographer_ros_msgs/TrajectoryQuery.h"
 #include "geometry_msgs/TransformStamped.h"
 #include "nav_msgs/OccupancyGrid.h"
+#include "pcl/point_types.h"
+#include "pcl_ros/point_cloud.h"
+#include "sensor_msgs/PointCloud2.h"
 
 // Abseil unfortunately pulls in winnt.h, which #defines DELETE.
 // Clean up to unbreak visualization_msgs::Marker::DELETE.
@@ -83,7 +87,13 @@ class MapBuilderBridge {
   bool SerializeState(const std::string& filename,
                       const bool include_unfinished_submaps);
 
+  bool HandleSubmapCloudQuery(
+      cartographer_ros_msgs::SubmapCloudQuery::Request& request,
+      cartographer_ros_msgs::SubmapCloudQuery::Response& response);
   void HandleSubmapQuery(
+      cartographer_ros_msgs::SubmapQuery::Request& request,
+      cartographer_ros_msgs::SubmapQuery::Response& response);
+  void HandleHeightMapQuery(
       cartographer_ros_msgs::SubmapQuery::Request& request,
       cartographer_ros_msgs::SubmapQuery::Response& response);
   void HandleTrajectoryQuery(
@@ -99,6 +109,8 @@ class MapBuilderBridge {
   visualization_msgs::MarkerArray GetTrajectoryNodeList();
   visualization_msgs::MarkerArray GetLandmarkPosesList();
   visualization_msgs::MarkerArray GetConstraintList();
+  visualization_msgs::MarkerArray GetFirstSubmapMarkers();
+  pcl::PointCloud<pcl::PointXYZ>::Ptr GetFirstSubmapAsPoints();
 
   SensorBridge* sensor_bridge(int trajectory_id);
 

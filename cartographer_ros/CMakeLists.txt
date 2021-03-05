@@ -21,12 +21,14 @@ set(PACKAGE_DEPENDENCIES
   geometry_msgs
   message_runtime
   nav_msgs
+  nodelet
   pcl_conversions
   rosbag
   roscpp
   roslib
   sensor_msgs
   std_msgs
+  swri_nodelet
   tf2
   tf2_eigen
   tf2_ros

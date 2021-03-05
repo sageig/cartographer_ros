@@ -20,10 +20,16 @@
 #include "absl/strings/str_cat.h"
 #include "cartographer/io/color.h"
 #include "cartographer/io/proto_stream.h"
+#include "cartographer/mapping/proto/hybrid_grid.pb.h"
 #include "cartographer_ros/msg_conversion.h"
 #include "cartographer_ros/time_conversion.h"
 #include "cartographer_ros_msgs/StatusCode.h"
 #include "cartographer_ros_msgs/StatusResponse.h"
+#include "Eigen/Eigen"
+#include "Eigen/Geometry"
+#include "sensor_msgs/point_cloud2_iterator.h"
+#include "cartographer/mapping/3d/hybrid_grid.h"
+
 
 namespace cartographer_ros {
 namespace {
@@ -118,6 +124,56 @@ void MapBuilderBridge::LoadState(const std::string& state_filename,
   map_builder_->LoadState(&stream, load_frozen_state);
 }
 
+sensor_msgs::PointCloud2 CreateCloudFromHybridGrid(
+  const cartographer::mapping::proto::HybridGrid& hybrid_grid,
+  double min_probability,
+  Eigen::Transform<float,3,Eigen::Affine> transform) {
+    ROS_DEBUG("Hybrid grid size %d", hybrid_grid.values_size());
+
+    double resolution = hybrid_grid.resolution();
+    sensor_msgs::PointCloud2 cloud;
+    cloud.height = 1; //"unstructured" point cloud
+    cloud.width = 0;
+    for (int i = 0; i < hybrid_grid.values_size(); i++) {
+        if(hybrid_grid.values(i) > 32767.0 * min_probability) cloud.width++;
+    }
+    cloud.is_dense = true;
+    cloud.is_bigendian = false;
+    sensor_msgs::PointCloud2Modifier modifier(cloud);
+    modifier.setPointCloud2Fields(4, "x", 1, sensor_msgs::PointField::FLOAT32,
+                                     "y", 1, sensor_msgs::PointField::FLOAT32,
+                                     "z", 1, sensor_msgs::PointField::FLOAT32,
+                                     "intensity", 1, sensor_msgs::PointField::FLOAT32);
+    sensor_msgs::PointCloud2Iterator<float> iter_x(cloud, "x");
+    sensor_msgs::PointCloud2Iterator<float> iter_y(cloud, "y");
+    sensor_msgs::PointCloud2Iterator<float> iter_z(cloud, "z");
+    sensor_msgs::PointCloud2Iterator<float> iter_intensity(cloud, "intensity");
+    
+    for (int i = 0; i < hybrid_grid.values_size(); i++) {
+      int value = hybrid_grid.values(i);
+      if(value > 32767 * min_probability){
+        int x,y,z;
+        x = hybrid_grid.x_indices(i);
+        y = hybrid_grid.y_indices(i);
+        z = hybrid_grid.z_indices(i); 
+        //transform the cell indices to an actual voxel center point
+        Eigen::Vector3f point = /*transform **/ Eigen::Vector3f(x * resolution + resolution/2, 
+                                                                y * resolution + resolution/2, 
+                                                                z * resolution + resolution/2);
+        *iter_x = point.x();
+        *iter_y = point.y();
+        *iter_z = point.z();
+        int prob_int = hybrid_grid.values(i);
+        *iter_intensity = prob_int / 32767.0; //2^15
+        ++iter_x; 
+        ++iter_y;
+        ++iter_z;
+        ++iter_intensity;
+      } 
+    }
+  return cloud;
+}
+
 int MapBuilderBridge::AddTrajectory(
     const std::set<cartographer::mapping::TrajectoryBuilderInterface::SensorId>&
         expected_sensor_ids,
@@ -196,6 +252,42 @@ void MapBuilderBridge::HandleSubmapQuery(
   }
   response.status.message = "Success.";
   response.status.code = cartographer_ros_msgs::StatusCode::OK;
+}
+
+bool MapBuilderBridge::HandleSubmapCloudQuery(
+      cartographer_ros_msgs::SubmapCloudQuery::Request& request,
+      cartographer_ros_msgs::SubmapCloudQuery::Response& response){
+  auto submapDataMap = map_builder_->pose_graph()->GetAllSubmapData();
+  cartographer::mapping::SubmapId submap_id{request.trajectory_id,
+                                            request.submap_index};
+  if(submapDataMap.Contains(submap_id)) {
+    const ::cartographer::mapping::PoseGraphInterface::SubmapData& submapData 
+          = submapDataMap.at(submap_id);
+    ::cartographer::mapping::proto::Submap protoSubmap;
+    ::cartographer::mapping::proto::Submap* protoSubmapPtr = &protoSubmap;
+
+    submapData.submap->ToProto(protoSubmapPtr);
+    const cartographer::mapping::proto::Submap3D& submap3d = protoSubmap.submap_3d();
+    const auto& hybrid_grid = request.high_resolution ? 
+                  submap3d.high_resolution_hybrid_grid() : submap3d.low_resolution_hybrid_grid();
+    Eigen::Transform<float,3,Eigen::Affine> transform = 
+              Eigen::Translation3f(submapData.pose.translation().x(), 
+                                   submapData.pose.translation().y(),
+                                   submapData.pose.translation().z()) 
+                                   * Eigen::Quaternion<float>(
+                          submapData.pose.rotation().w(), submapData.pose.rotation().x(),
+                          submapData.pose.rotation().y(), submapData.pose.rotation().z());
+    auto cloud = CreateCloudFromHybridGrid(hybrid_grid, request.min_probability, transform);
+    cloud.header.frame_id = node_options_.map_frame;
+    cloud.header.stamp = ros::Time::now();
+
+    response.cloud = cloud;
+    response.submap_version = submap3d.num_range_data();
+    response.finished = submap3d.finished();
+    response.resolution = hybrid_grid.resolution();
+    return true;
+  }
+  return false;
 }
 
 std::map<int, ::cartographer::mapping::PoseGraphInterface::TrajectoryState>

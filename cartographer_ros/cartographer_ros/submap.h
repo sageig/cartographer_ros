@@ -26,6 +26,7 @@
 #include "cartographer/mapping/id.h"
 #include "cartographer/transform/rigid_transform.h"
 #include "ros/ros.h"
+#include "sensor_msgs/PointCloud2.h"
 
 namespace cartographer_ros {
 
@@ -33,6 +34,11 @@ namespace cartographer_ros {
 // on error.
 std::unique_ptr<::cartographer::io::SubmapTextures> FetchSubmapTextures(
     const ::cartographer::mapping::SubmapId& submap_id,
+    ros::ServiceClient* client);
+std::unique_ptr<sensor_msgs::PointCloud2> FetchSubmapCloud(
+    const ::cartographer::mapping::SubmapId& submap_id,
+    float min_probability,
+    bool high_resolution,
     ros::ServiceClient* client);
 
 }  // namespace cartographer_ros

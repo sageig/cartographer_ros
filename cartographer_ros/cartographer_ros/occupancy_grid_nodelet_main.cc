@@ -32,7 +32,6 @@
 #include "cartographer_ros/ros_log_sink.h"
 #include "cartographer_ros/submap.h"
 #include "cartographer_ros_msgs/SubmapList.h"
-#include "cartographer_ros_msgs/SubmapCloudQuery.h"
 #include "cartographer_ros_msgs/SubmapQuery.h"
 #include "gflags/gflags.h"
 #include "nav_msgs/OccupancyGrid.h"
@@ -47,8 +46,6 @@ DEFINE_bool(include_unfrozen_submaps, true,
             "Include unfrozen submaps in the occupancy grid.");
 DEFINE_string(occupancy_grid_topic, cartographer_ros::kOccupancyGridTopic,
               "Name of the topic on which the occupancy grid is published.");
-DEFINE_string(voxel_cloud_topic, cartographer_ros::kVoxelCloudTopic,
-              "Name of the topic on which the voxel cloud is published.");
 
 namespace cartographer_ros {
 namespace {
@@ -74,23 +71,18 @@ class Node {
 
   absl::Mutex mutex_;
   ::ros::ServiceClient client_ GUARDED_BY(mutex_);
-  ::ros::ServiceClient cloud_client_ GUARDED_BY(mutex_);
   ::ros::Subscriber submap_list_subscriber_ GUARDED_BY(mutex_);
   ::ros::Publisher occupancy_grid_publisher_ GUARDED_BY(mutex_);
-  ::ros::Publisher voxel_cloud_publisher_ GUARDED_BY(mutex_);
   std::map<SubmapId, SubmapSlice> submap_slices_ GUARDED_BY(mutex_);
   ::ros::WallTimer occupancy_grid_publisher_timer_;
   std::string last_frame_id_;
   ros::Time last_timestamp_;
-  sensor_msgs::PointCloud2 voxel_cloud_ GUARDED_BY(mutex_);
 };
 
 Node::Node(const double resolution, const double publish_period_sec)
     : resolution_(resolution),
       client_(node_handle_.serviceClient<::cartographer_ros_msgs::SubmapQuery>(
           kSubmapQueryServiceName)),
-      cloud_client_(node_handle_.serviceClient<::cartographer_ros_msgs::SubmapCloudQuery>(
-          kSubmapCloudQueryServiceName)),
       submap_list_subscriber_(node_handle_.subscribe(
           kSubmapListTopic, kLatestOnlyPublisherQueueSize,
           boost::function<void(
@@ -102,10 +94,6 @@ Node::Node(const double resolution, const double publish_period_sec)
           node_handle_.advertise<::nav_msgs::OccupancyGrid>(
               FLAGS_occupancy_grid_topic, kLatestOnlyPublisherQueueSize,
               true /* latched */)),
-      voxel_cloud_publisher_(
-          node_handle_.advertise<::sensor_msgs::PointCloud2>(
-              FLAGS_voxel_cloud_topic, kLatestOnlyPublisherQueueSize,
-              true)),
       occupancy_grid_publisher_timer_(
           node_handle_.createWallTimer(::ros::WallDuration(publish_period_sec),
                                        &Node::DrawAndPublish, this)) {}
@@ -124,7 +112,6 @@ void Node::HandleSubmapList(
   for (const auto& pair : submap_slices_) {
     submap_ids_to_delete.insert(pair.first);
   }
-
 
   for (const auto& submap_msg : msg->submap) {
     const SubmapId id{submap_msg.trajectory_id, submap_msg.submap_index};
@@ -162,30 +149,6 @@ void Node::HandleSubmapList(
         fetched_texture->pixels.intensity, fetched_texture->pixels.alpha,
         fetched_texture->width, fetched_texture->height,
         &submap_slice.cairo_data);
-
-    // // Height map
-    // const auto fetched_texture_hm = fetched_textures->textures.rbegin();
-    // submap_slice.width = fetched_texture_hm->width;
-    // submap_slice.height = fetched_texture_hm->height;
-    // submap_slice.slice_pose = fetched_texture_hm->slice_pose;
-    // submap_slice.resolution = fetched_texture_hm->resolution;
-    // submap_slice.cairo_data.clear();
-    // submap_slice.surface = ::cartographer::io::DrawTexture(
-    //     fetched_texture_hm->pixels.intensity, fetched_texture_hm->pixels.alpha,
-    //     fetched_texture_hm->width, fetched_texture_hm->height,
-    //     &submap_slice.cairo_data);
-
-    auto fetched_cloud =
-        ::cartographer_ros::FetchSubmapCloud(id,0,fetched_texture->resolution,&cloud_client_);
-    if (fetched_cloud != nullptr)
-    {
-      voxel_cloud_.header.frame_id = msg->header.frame_id;
-      voxel_cloud_.data.insert(voxel_cloud_.data.end(),fetched_cloud->data.begin(),fetched_cloud->data.end());
-    }
-    else
-    {
-      ROS_INFO("fecthed_cloud is empty");
-    }
   }
 
   // Delete all submaps that didn't appear in the message.
@@ -206,14 +169,6 @@ void Node::DrawAndPublish(const ::ros::WallTimerEvent& unused_timer_event) {
   std::unique_ptr<nav_msgs::OccupancyGrid> msg_ptr = CreateOccupancyGridMsg(
       painted_slices, resolution_, last_frame_id_, last_timestamp_);
   occupancy_grid_publisher_.publish(*msg_ptr);
-  if (voxel_cloud_.data.empty())
-  {
-    ROS_INFO("Empty cloud data");
-    return;
-  }
-  voxel_cloud_.header.stamp = ros::Time::now();
-  voxel_cloud_publisher_.publish(voxel_cloud_);
-  voxel_cloud_.data.clear();
 }
 
 }  // namespace
