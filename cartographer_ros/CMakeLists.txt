@@ -149,6 +149,10 @@ set(TARGET_COMPILE_FLAGS "${TARGET_COMPILE_FLAGS} ${GOOG_CXX_FLAGS}")
 set_target_properties(${PROJECT_NAME} PROPERTIES
   COMPILE_FLAGS ${TARGET_COMPILE_FLAGS})
 
+swri_nodelet_add_node(cartographer_nodelet ${PROJECT_NAME} CartographerNodelet)
+target_link_libraries(cartographer_nodelet ${PROJECT_NAME})
+set_target_properties(cartographer_nodelet PROPERTIES COMPILE_FLAGS "-std=c++14 -DPCL_NO_PRECOMPILE")
+
 if (CATKIN_ENABLE_TESTING)
   foreach(TEST_SOURCE_FILENAME ${ALL_TESTS})
     get_filename_component(TEST_NAME ${TEST_SOURCE_FILENAME} NAME_WE)
@@ -179,7 +183,12 @@ install(PROGRAMS scripts/tf_remove_frames.py
   DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
 )
 
+install(FILES nodelet_plugins.xml
+  DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION}
+)
+
 install(TARGETS ${PROJECT_NAME}
+  cartographer_nodelet
   ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
   LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
   RUNTIME DESTINATION ${CATKIN_GLOBAL_BIN_DESTINATION}

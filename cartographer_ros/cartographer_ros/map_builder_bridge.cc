@@ -143,11 +143,11 @@ sensor_msgs::PointCloud2 CreateCloudFromHybridGrid(
     modifier.setPointCloud2Fields(4, "x", 1, sensor_msgs::PointField::FLOAT32,
                                      "y", 1, sensor_msgs::PointField::FLOAT32,
                                      "z", 1, sensor_msgs::PointField::FLOAT32,
-                                     "intensity", 1, sensor_msgs::PointField::FLOAT32);
+                                     "probability", 1, sensor_msgs::PointField::FLOAT32);
     sensor_msgs::PointCloud2Iterator<float> iter_x(cloud, "x");
     sensor_msgs::PointCloud2Iterator<float> iter_y(cloud, "y");
     sensor_msgs::PointCloud2Iterator<float> iter_z(cloud, "z");
-    sensor_msgs::PointCloud2Iterator<float> iter_intensity(cloud, "intensity");
+    sensor_msgs::PointCloud2Iterator<float> iter_probability(cloud, "probability");
     
     for (int i = 0; i < hybrid_grid.values_size(); i++) {
       int value = hybrid_grid.values(i);
@@ -164,11 +164,11 @@ sensor_msgs::PointCloud2 CreateCloudFromHybridGrid(
         *iter_y = point.y();
         *iter_z = point.z();
         int prob_int = hybrid_grid.values(i);
-        *iter_intensity = prob_int / 32767.0; //2^15
+        *iter_probability = static_cast<float>(prob_int) / 32767.0; //2^15
         ++iter_x; 
         ++iter_y;
         ++iter_z;
-        ++iter_intensity;
+        ++iter_probability;
       } 
     }
   return cloud;
@@ -266,7 +266,7 @@ bool MapBuilderBridge::HandleSubmapCloudQuery(
     ::cartographer::mapping::proto::Submap protoSubmap;
     ::cartographer::mapping::proto::Submap* protoSubmapPtr = &protoSubmap;
 
-    submapData.submap->ToProto(protoSubmapPtr);
+    *protoSubmapPtr = submapData.submap->ToProto(true);
     const cartographer::mapping::proto::Submap3D& submap3d = protoSubmap.submap_3d();
     const auto& hybrid_grid = request.high_resolution ? 
                   submap3d.high_resolution_hybrid_grid() : submap3d.low_resolution_hybrid_grid();

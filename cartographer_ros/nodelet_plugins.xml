@@ -1,0 +1,9 @@
+<library path="lib/libcartographer_ros">
+  <class type="cartographer_ros::CartographerNodelet"
+         name="cartographer_ros/cartographer_nodelet"
+         base_class_type="nodelet::Nodelet">
+    <description>
+      Nodelet wrapper around cartographer_ros
+    </description>
+  </class>=
+</library>

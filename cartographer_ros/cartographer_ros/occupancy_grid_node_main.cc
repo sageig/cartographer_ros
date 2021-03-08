@@ -115,7 +115,7 @@ void Node::HandleSubmapList(
   absl::MutexLock locker(&mutex_);
 
   // We do not do any work if nobody listens.
-  if (occupancy_grid_publisher_.getNumSubscribers() == 0) {
+  if (occupancy_grid_publisher_.getNumSubscribers() == 0 && voxel_cloud_publisher_.getNumSubscribers() == 0) {
     return;
   }
 
@@ -176,15 +176,15 @@ void Node::HandleSubmapList(
     //     &submap_slice.cairo_data);
 
     auto fetched_cloud =
-        ::cartographer_ros::FetchSubmapCloud(id,0,fetched_texture->resolution,&cloud_client_);
-    if (fetched_cloud != nullptr)
+        ::cartographer_ros::FetchSubmapCloud(id,0,true,&cloud_client_);
+    if (fetched_cloud != nullptr && voxel_cloud_.data.empty())
     {
-      voxel_cloud_.header.frame_id = msg->header.frame_id;
+      voxel_cloud_ = *fetched_cloud;
+    } 
+    else if (fetched_cloud != nullptr)
+    {
+      voxel_cloud_.width += fetched_cloud->width;
       voxel_cloud_.data.insert(voxel_cloud_.data.end(),fetched_cloud->data.begin(),fetched_cloud->data.end());
-    }
-    else
-    {
-      ROS_INFO("fecthed_cloud is empty");
     }
   }
 
@@ -208,7 +208,6 @@ void Node::DrawAndPublish(const ::ros::WallTimerEvent& unused_timer_event) {
   occupancy_grid_publisher_.publish(*msg_ptr);
   if (voxel_cloud_.data.empty())
   {
-    ROS_INFO("Empty cloud data");
     return;
   }
   voxel_cloud_.header.stamp = ros::Time::now();
