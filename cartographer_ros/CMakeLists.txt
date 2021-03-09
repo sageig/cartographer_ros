@@ -103,7 +103,7 @@ if (NOT ${BUILD_GRPC})
   list(REMOVE_ITEM ALL_TESTS ${ALL_GRPC_FILES})
   list(REMOVE_ITEM ALL_EXECUTABLES ${ALL_GRPC_FILES})
 endif()
-add_library(${PROJECT_NAME} STATIC ${ALL_SRCS})
+add_library(${PROJECT_NAME} SHARED ${ALL_SRCS})
 add_subdirectory("cartographer_ros")
 
 target_link_libraries(${PROJECT_NAME} PUBLIC cartographer)
@@ -153,6 +153,10 @@ swri_nodelet_add_node(cartographer_nodelet ${PROJECT_NAME} CartographerNodelet)
 target_link_libraries(cartographer_nodelet ${PROJECT_NAME})
 set_target_properties(cartographer_nodelet PROPERTIES COMPILE_FLAGS "-std=c++14 -DPCL_NO_PRECOMPILE")
 
+swri_nodelet_add_node(occupancy_grid_nodelet ${PROJECT_NAME} OccupancyGridNodelet)
+target_link_libraries(occupancy_grid_nodelet ${PROJECT_NAME})
+set_target_properties(occupancy_grid_nodelet PROPERTIES COMPILE_FLAGS "-std=c++14 -DPCL_NO_PRECOMPILE")
+
 if (CATKIN_ENABLE_TESTING)
   foreach(TEST_SOURCE_FILENAME ${ALL_TESTS})
     get_filename_component(TEST_NAME ${TEST_SOURCE_FILENAME} NAME_WE)
@@ -187,8 +191,10 @@ install(FILES nodelet_plugins.xml
   DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION}
 )
 
-install(TARGETS ${PROJECT_NAME}
+install(TARGETS
+  ${PROJECT_NAME}
   cartographer_nodelet
+  occupancy_grid_nodelet
   ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
   LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
   RUNTIME DESTINATION ${CATKIN_GLOBAL_BIN_DESTINATION}
