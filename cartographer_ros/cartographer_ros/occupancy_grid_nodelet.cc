@@ -101,7 +101,8 @@ public:
     absl::MutexLock locker(&mutex_);
 
     // We do not do any work if nobody listens.
-    if (occupancy_grid_publisher_.getNumSubscribers() == 0) {
+    if (occupancy_grid_publisher_.getNumSubscribers() == 0 &&
+        voxel_cloud_publisher_.getNumSubscribers() == 0) {
       return;
     }
 
