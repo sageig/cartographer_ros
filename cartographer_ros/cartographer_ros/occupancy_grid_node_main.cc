@@ -163,18 +163,6 @@ void Node::HandleSubmapList(
         fetched_texture->width, fetched_texture->height,
         &submap_slice.cairo_data);
 
-    // // Height map
-    // const auto fetched_texture_hm = fetched_textures->textures.rbegin();
-    // submap_slice.width = fetched_texture_hm->width;
-    // submap_slice.height = fetched_texture_hm->height;
-    // submap_slice.slice_pose = fetched_texture_hm->slice_pose;
-    // submap_slice.resolution = fetched_texture_hm->resolution;
-    // submap_slice.cairo_data.clear();
-    // submap_slice.surface = ::cartographer::io::DrawTexture(
-    //     fetched_texture_hm->pixels.intensity, fetched_texture_hm->pixels.alpha,
-    //     fetched_texture_hm->width, fetched_texture_hm->height,
-    //     &submap_slice.cairo_data);
-
     auto fetched_cloud =
         ::cartographer_ros::FetchSubmapCloud(id,0,true,&cloud_client_);
     if (fetched_cloud != nullptr && voxel_cloud_.data.empty())

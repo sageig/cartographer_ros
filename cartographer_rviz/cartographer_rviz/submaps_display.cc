@@ -57,9 +57,6 @@ SubmapsDisplay::SubmapsDisplay() : tf_listener_(tf_buffer_) {
   slice_low_resolution_enabled_ = new ::rviz::BoolProperty(
       "Low Resolution", false, "Display low resolution slices.", this,
       SLOT(ResolutionToggled()), this);
-  // slice_height_map_enabled_ = new ::rviz::BoolProperty(
-  //     "Height Map", false, "Display height map slices.", this,
-  //     SLOT(ResolutionToggled()), this);
   client_ = update_nh_.serviceClient<::cartographer_ros_msgs::SubmapQuery>("");
   trajectories_category_ = new ::rviz::Property(
       "Submaps", QVariant(), "List of all submaps, organized by trajectories.",
@@ -177,8 +174,6 @@ void SubmapsDisplay::processMessage(
           ->SetSliceVisibility(0, slice_high_resolution_enabled_->getBool());
       trajectory_submaps.at(id.submap_index)
           ->SetSliceVisibility(1, slice_low_resolution_enabled_->getBool());
-      // trajectory_submaps.at(id.submap_index)
-      //     ->SetSliceVisibility(2, slice_height_map_enabled_->getBool());
     }
     trajectory_submaps.at(id.submap_index)->Update(msg->header, submap_entry);
   }
@@ -279,8 +274,6 @@ void SubmapsDisplay::ResolutionToggled() {
           0, slice_high_resolution_enabled_->getBool());
       submap_entry.second->SetSliceVisibility(
           1, slice_low_resolution_enabled_->getBool());
-      // submap_entry.second->SetSliceVisibility(
-      //     2, slice_height_map_enabled_->getBool());
     }
   }
 }

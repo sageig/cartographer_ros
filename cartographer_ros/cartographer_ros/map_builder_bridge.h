@@ -93,9 +93,6 @@ class MapBuilderBridge {
   void HandleSubmapQuery(
       cartographer_ros_msgs::SubmapQuery::Request& request,
       cartographer_ros_msgs::SubmapQuery::Response& response);
-  void HandleHeightMapQuery(
-      cartographer_ros_msgs::SubmapQuery::Request& request,
-      cartographer_ros_msgs::SubmapQuery::Response& response);
   void HandleTrajectoryQuery(
       cartographer_ros_msgs::TrajectoryQuery::Request& request,
       cartographer_ros_msgs::TrajectoryQuery::Response& response);
