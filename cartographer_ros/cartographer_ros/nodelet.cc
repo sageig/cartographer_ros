@@ -907,6 +907,14 @@ public:
                               const std::string& sensor_id,
                               const sensor_msgs::Imu::ConstPtr& msg) {
     absl::MutexLock lock(&mutex_);
+    if (prev_imu_msg_ && (msg->header.stamp - prev_imu_msg_->header.stamp).toSec() < 0.0)
+    {
+      return;
+    }
+    else
+    {
+      prev_imu_msg_ = msg;
+    }
     if (!sensor_samplers_.at(trajectory_id).imu_sampler.Pulse()) {
       return;
     }
@@ -1066,6 +1074,8 @@ private:
   std::shared_ptr<tf2_ros::TransformListener> tf_;
   std::shared_ptr<tf2_ros::Buffer> tf_buffer_;
   std::unique_ptr<cartographer::mapping::MapBuilderInterface> map_builder_;
+
+  sensor_msgs::Imu::ConstPtr prev_imu_msg_;
 
 }; // class CartographerNodelet
 }  // namespace cartographer_ros
