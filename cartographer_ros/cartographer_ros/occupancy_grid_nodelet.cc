@@ -114,6 +114,18 @@ public:
 
     for (const auto& submap_msg : msg->submap) {
       const SubmapId id{submap_msg.trajectory_id, submap_msg.submap_index};
+      // auto fetched_cloud =
+      //   ::cartographer_ros::FetchSubmapCloud(id,0,true,&cloud_client_);
+      // if (fetched_cloud != nullptr && voxel_cloud_.data.empty())
+      // {
+      //   voxel_cloud_ = *fetched_cloud;
+      // } 
+      // else if (fetched_cloud != nullptr)
+      // {
+      //   voxel_cloud_.width += fetched_cloud->width;
+      //   voxel_cloud_.data.insert(voxel_cloud_.data.end(),fetched_cloud->data.begin(),fetched_cloud->data.end());
+      // }
+
       submap_ids_to_delete.erase(id);
       if ((submap_msg.is_frozen && !include_frozen_submaps_) ||
           (!submap_msg.is_frozen && !include_unfrozen_submaps_)) {
@@ -148,17 +160,6 @@ public:
           fetched_texture->pixels.intensity, fetched_texture->pixels.alpha,
           fetched_texture->width, fetched_texture->height,
           &submap_slice.cairo_data);
-      auto fetched_cloud =
-        ::cartographer_ros::FetchSubmapCloud(id,0,true,&cloud_client_);
-      if (fetched_cloud != nullptr && voxel_cloud_.data.empty())
-      {
-        voxel_cloud_ = *fetched_cloud;
-      } 
-      else if (fetched_cloud != nullptr)
-      {
-        voxel_cloud_.width += fetched_cloud->width;
-        voxel_cloud_.data.insert(voxel_cloud_.data.end(),fetched_cloud->data.begin(),fetched_cloud->data.end());
-      }
     }
 
     // Delete all submaps that didn't appear in the message.
@@ -184,6 +185,7 @@ public:
       return;
     }
     voxel_cloud_.header.stamp = ros::Time::now();
+    voxel_cloud_.header.frame_id = last_frame_id_;
     voxel_cloud_publisher_.publish(voxel_cloud_);
     voxel_cloud_.data.clear();
   }
