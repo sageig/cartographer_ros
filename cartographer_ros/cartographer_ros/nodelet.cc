@@ -225,7 +225,6 @@ public:
     }
 
     if (start_trajectory_with_default_topics) {
-      ROS_INFO("start_trajectory_with_default_topics");
       StartTrajectoryWithDefaultTopics(trajectory_options);
     }
   }
@@ -491,7 +490,6 @@ public:
   }
 
   int AddTrajectory(const TrajectoryOptions& options) {
-    ROS_INFO("AddTrajectory");
     const std::set<cartographer::mapping::TrajectoryBuilderInterface::SensorId>
         expected_sensor_ids = ComputeExpectedSensorIds(options);
     const int trajectory_id =
@@ -527,7 +525,6 @@ public:
     }
     for (const std::string& topic :
          ComputeRepeatedTopicNames(kPointCloud2Topic, options.num_point_clouds)) {
-      ROS_INFO("PointCloud2 topic: %s",topic.c_str());
       subscribers_[trajectory_id].push_back(
           {CartographerNodelet::SubscribeWithHandler<sensor_msgs::PointCloud2>(
                &CartographerNodelet::HandlePointCloud2Message, trajectory_id, topic,
@@ -541,7 +538,6 @@ public:
         (node_options_.map_builder_options.use_trajectory_builder_2d() &&
          options.trajectory_builder_options.trajectory_builder_2d_options()
              .use_imu_data())) {
-      ROS_INFO("IMU topic: %s",kImuTopic);
       subscribers_[trajectory_id].push_back(
           {CartographerNodelet::SubscribeWithHandler<sensor_msgs::Imu>(&CartographerNodelet::HandleImuMessage,
                                                   trajectory_id, kImuTopic,
@@ -573,17 +569,14 @@ public:
   }
 
   bool ValidateTrajectoryOptions(const TrajectoryOptions& options) {
-    ROS_INFO("ValidateTrajectoryOptions");
     if (node_options_.map_builder_options.use_trajectory_builder_2d()) {
       return options.trajectory_builder_options
           .has_trajectory_builder_2d_options();
     }
     if (node_options_.map_builder_options.use_trajectory_builder_3d()) {
-      ROS_INFO("Use 3d trajectory");
       return options.trajectory_builder_options
           .has_trajectory_builder_3d_options();
     }
-    ROS_INFO("return false");
     return false;
   }
 
@@ -716,11 +709,8 @@ public:
   }
 
   void StartTrajectoryWithDefaultTopics(const TrajectoryOptions& options) {
-    ROS_INFO("StartTrajectoryWithDefaultTopics");
     absl::MutexLock lock(&mutex_);
-    ROS_INFO("locked");
     CHECK(ValidateTrajectoryOptions(options));
-    ROS_INFO("Checked");
     AddTrajectory(options);
   }
 
@@ -907,8 +897,10 @@ public:
                               const std::string& sensor_id,
                               const sensor_msgs::Imu::ConstPtr& msg) {
     absl::MutexLock lock(&mutex_);
-    if (prev_imu_msg_ && (msg->header.stamp - prev_imu_msg_->header.stamp).toSec() < 0.0)
+    if (prev_imu_msg_ && (msg->header.stamp - prev_imu_msg_->header.stamp).toSec() <= 0.0)
     {
+      ROS_INFO("IMU timestamp: %d, %d; prev: %d, %d", msg->header.stamp.sec, msg->header.stamp.nsec,
+        prev_imu_msg_->header.stamp.sec, prev_imu_msg_->header.stamp.nsec);
       return;
     }
     else
