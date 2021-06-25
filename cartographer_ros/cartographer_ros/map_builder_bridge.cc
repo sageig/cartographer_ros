@@ -134,9 +134,9 @@ sensor_msgs::PointCloud2 CreateCloudFromHybridGrid(
     sensor_msgs::PointCloud2 cloud;
     cloud.height = 1; //"unstructured" point cloud
     cloud.width = 0;
-    // for (int i = 0; i < hybrid_grid.values_size(); i++) {
-    //     if(hybrid_grid.values(i) > 32767.0 * min_probability) cloud.width++;
-    // }
+    for (int i = 0; i < hybrid_grid.values_size(); i++) {
+        if(hybrid_grid.values(i) > 32767.0 * min_probability) cloud.width++;
+    }
     cloud.width = hybrid_grid.values_size();
     cloud.is_dense = true;
     cloud.is_bigendian = false;
@@ -152,7 +152,7 @@ sensor_msgs::PointCloud2 CreateCloudFromHybridGrid(
     
     for (int i = 0; i < hybrid_grid.values_size(); i++) {
       int value = hybrid_grid.values(i);
-      // if(value > 32767 * min_probability){
+      if(value > 32767 * min_probability){
         int x,y,z;
         x = hybrid_grid.x_indices(i);
         y = hybrid_grid.y_indices(i);
@@ -170,7 +170,7 @@ sensor_msgs::PointCloud2 CreateCloudFromHybridGrid(
         ++iter_y;
         ++iter_z;
         ++iter_probability;
-      // } 
+      } 
     }
   return cloud;
 }
