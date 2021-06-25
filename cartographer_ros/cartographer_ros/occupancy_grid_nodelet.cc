@@ -36,6 +36,7 @@
 #include "cartographer_ros_msgs/SubmapCloudQuery.h"
 #include "gflags/gflags.h"
 #include "nav_msgs/OccupancyGrid.h"
+#include "nav_msgs/Odometry.h"
 #include "nodelet/nodelet.h"
 #include "ros/ros.h"
 #include <swri_roscpp/parameters.h>
@@ -64,6 +65,8 @@ public:
   {
     ros::NodeHandle pnh = getPrivateNodeHandle();
     double publish_period_sec;
+    swri::param(pnh, "altitude_threshold",altitude_threshold_, 4.0);
+    swri::param(pnh, "minimum_probability",minimum_probability_, 0.2);
     swri::param(pnh, "resolution",resolution_, 0.05);
     swri::param(pnh, "publish_period_sec",publish_period_sec, 1.0);
     swri::param(pnh, "include_frozen_submaps",include_frozen_submaps_, true);
@@ -75,6 +78,9 @@ public:
 
     client_ = node_handle_.serviceClient<::cartographer_ros_msgs::SubmapQuery>(kSubmapQueryServiceName);
     cloud_client_ = node_handle_.serviceClient<::cartographer_ros_msgs::SubmapCloudQuery>(kSubmapCloudQueryServiceName);
+
+    odometry_subscriber_ = node_handle_.subscribe("odom", kLatestOnlyPublisherQueueSize,
+      &OccupancyGridNodelet::HandleOdometry, this);
 
     submap_list_subscriber_ = node_handle_.subscribe(
       kSubmapListTopic, kLatestOnlyPublisherQueueSize,
@@ -96,6 +102,11 @@ public:
   // Node(const Node&) = delete;
   // Node& operator=(const Node&) = delete;
 
+  void HandleOdometry(const nav_msgs::OdometryConstPtr& msg)
+  {
+    odom_ = msg;
+  }
+
   void HandleSubmapList(
       const cartographer_ros_msgs::SubmapList::ConstPtr& msg) {
     absl::MutexLock locker(&mutex_);
@@ -114,18 +125,10 @@ public:
 
     for (const auto& submap_msg : msg->submap) {
       const SubmapId id{submap_msg.trajectory_id, submap_msg.submap_index};
-      // auto fetched_cloud =
-      //   ::cartographer_ros::FetchSubmapCloud(id,0,true,&cloud_client_);
-      // if (fetched_cloud != nullptr && voxel_cloud_.data.empty())
-      // {
-      //   voxel_cloud_ = *fetched_cloud;
-      // } 
-      // else if (fetched_cloud != nullptr)
-      // {
-      //   voxel_cloud_.width += fetched_cloud->width;
-      //   voxel_cloud_.data.insert(voxel_cloud_.data.end(),fetched_cloud->data.begin(),fetched_cloud->data.end());
-      // }
-
+      if (odom_ && std::fabs(odom_->pose.pose.position.z - submap_msg.pose.position.z) > altitude_threshold_ &&
+        submap_msg != msg->submap.back()) {
+        continue;
+      }
       submap_ids_to_delete.erase(id);
       if ((submap_msg.is_frozen && !include_frozen_submaps_) ||
           (!submap_msg.is_frozen && !include_unfrozen_submaps_)) {
@@ -143,8 +146,9 @@ public:
           ::cartographer_ros::FetchSubmapTextures(id, &client_);
       if (fetched_textures == nullptr) {
         continue;
+      } else if (fetched_textures->textures.empty()) {
+        continue;
       }
-      CHECK(!fetched_textures->textures.empty());
       submap_slice.version = fetched_textures->version;
 
       // We use the first texture only. By convention this is the highest
@@ -160,6 +164,15 @@ public:
           fetched_texture->pixels.intensity, fetched_texture->pixels.alpha,
           fetched_texture->width, fetched_texture->height,
           &submap_slice.cairo_data);
+
+      auto fetched_cloud =
+        ::cartographer_ros::FetchSubmapCloud(id,minimum_probability_,false,&cloud_client_);
+      if (fetched_cloud != nullptr && voxel_cloud_.data.empty()) {
+        voxel_cloud_ = *fetched_cloud;
+      } else if (fetched_cloud != nullptr) {
+        voxel_cloud_.width += fetched_cloud->width;
+        voxel_cloud_.data.insert(voxel_cloud_.data.end(),fetched_cloud->data.begin(),fetched_cloud->data.end());
+      }
     }
 
     // Delete all submaps that didn't appear in the message.
@@ -180,8 +193,7 @@ public:
     std::unique_ptr<nav_msgs::OccupancyGrid> msg_ptr = CreateOccupancyGridMsg(
         painted_slices, resolution_, last_frame_id_, last_timestamp_);
     occupancy_grid_publisher_.publish(*msg_ptr);
-    if (voxel_cloud_.data.empty())
-    {
+    if (voxel_cloud_.data.empty()) {
       return;
     }
     voxel_cloud_.header.stamp = ros::Time::now();
@@ -197,6 +209,7 @@ public:
   absl::Mutex mutex_;
   ::ros::ServiceClient client_ GUARDED_BY(mutex_);
   ::ros::ServiceClient cloud_client_ GUARDED_BY(mutex_);
+  ::ros::Subscriber odometry_subscriber_ GUARDED_BY(mutex_);
   ::ros::Subscriber submap_list_subscriber_ GUARDED_BY(mutex_);
   ::ros::Publisher occupancy_grid_publisher_ GUARDED_BY(mutex_);
   ::ros::Publisher voxel_cloud_publisher_ GUARDED_BY(mutex_);
@@ -208,6 +221,9 @@ public:
   bool include_frozen_submaps_;
   bool include_unfrozen_submaps_;
   sensor_msgs::PointCloud2 voxel_cloud_ GUARDED_BY(mutex_);
+  nav_msgs::Odometry::ConstPtr odom_;
+  double altitude_threshold_;
+  float minimum_probability_;
 }; // class OccupancyGridNodelet
 }  // namespace cartographer_ros
 
