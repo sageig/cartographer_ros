@@ -72,10 +72,6 @@ public:
     swri::param(pnh, "include_frozen_submaps",include_frozen_submaps_, true);
     swri::param(pnh, "include_unfrozen_submaps",include_unfrozen_submaps_, true);
 
-    // CHECK(FLAGS_include_frozen_submaps || FLAGS_include_unfrozen_submaps)
-    //     << "Ignoring both frozen and unfrozen submaps makes no sense.";
-    // if ()
-
     client_ = node_handle_.serviceClient<::cartographer_ros_msgs::SubmapQuery>(kSubmapQueryServiceName);
     cloud_client_ = node_handle_.serviceClient<::cartographer_ros_msgs::SubmapCloudQuery>(kSubmapCloudQueryServiceName);
 
@@ -98,9 +94,6 @@ public:
     occupancy_grid_publisher_timer_ = node_handle_.createWallTimer(
       ::ros::WallDuration(publish_period_sec), &OccupancyGridNodelet::DrawAndPublish, this);
   }
-
-  // Node(const Node&) = delete;
-  // Node& operator=(const Node&) = delete;
 
   void HandleOdometry(const nav_msgs::OdometryConstPtr& msg)
   {
@@ -129,7 +122,7 @@ public:
         submap_msg != msg->submap.back()) {
         continue;
       }
-      submap_ids_to_delete.erase(id);
+      // submap_ids_to_delete.erase(id);
       if ((submap_msg.is_frozen && !include_frozen_submaps_) ||
           (!submap_msg.is_frozen && !include_unfrozen_submaps_)) {
         continue;
@@ -137,10 +130,10 @@ public:
       SubmapSlice& submap_slice = submap_slices_[id];
       submap_slice.pose = ToRigid3d(submap_msg.pose);
       submap_slice.metadata_version = submap_msg.submap_version;
-      if (submap_slice.surface != nullptr &&
-          submap_slice.version == submap_msg.submap_version) {
-        continue;
-      }
+      // if (submap_slice.surface != nullptr &&
+      //     submap_slice.version == submap_msg.submap_version) {
+      //   continue;
+      // }
 
       auto fetched_textures =
           ::cartographer_ros::FetchSubmapTextures(id, &client_);
@@ -176,9 +169,9 @@ public:
     }
 
     // Delete all submaps that didn't appear in the message.
-    for (const auto& id : submap_ids_to_delete) {
-      submap_slices_.erase(id);
-    }
+    // for (const auto& id : submap_ids_to_delete) {
+    //   submap_slices_.erase(id);
+    // }
 
     last_timestamp_ = msg->header.stamp;
     last_frame_id_ = msg->header.frame_id;
